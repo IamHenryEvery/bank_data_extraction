@@ -1,0 +1,10 @@
+{
+  "consent_id": "cns_2026_0806_a17c",
+  "client_ref": "client_7f3a",
+  "bank": "demo_bank",
+  "scopes": ["products", "balances", "transactions", "requisites"],
+  "period": {"from": "2026-01-01", "to": "2026-06-17"},
+  "granted_at": "2026-08-06T09:00:00Z",
+  "expires_at": "2036-01-01T00:00:00Z",
+  "method": "explicit_ui_confirmation"
+}

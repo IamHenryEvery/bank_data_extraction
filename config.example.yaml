@@ -1,0 +1,34 @@
+bank: demo_bank
+base_url: http://localhost:8765
+
+period:
+  from: 2026-01-01
+  to: 2026-06-17
+
+consent_file: ./consent.example.json
+
+session:
+  # attach — подключиться к уже открытому браузеру клиента по CDP
+  # launch — поднять свой браузер и дождаться, пока клиент войдёт сам
+  # auto   — пробуем attach, при неудаче launch
+  mode: launch
+  cdp_url: http://localhost:9222
+  user_data_dir: ./.profiles/demo
+  headless: false
+  auth_timeout_s: 300
+
+output:
+  dir: ./out
+  formats: [json, csv, parquet]
+
+logging:
+  level: INFO
+  file: ./out/extraction.log
+
+retries:
+  attempts: 3
+  backoff_s: 1.0
+
+timeouts:
+  navigation_s: 20
+  selector_s: 10
