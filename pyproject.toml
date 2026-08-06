@@ -1,0 +1,53 @@
+[project]
+name = "bank-extractor"
+version = "0.1.0"
+description = "Прототип извлечения банковской выписки после авторизации клиента"
+readme = "README.md"
+authors = [
+    { name = "IamHenryEvery", email = "nikitagr1205@yandex.ru" }
+]
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.141.1",
+    "jinja2>=3.1.6",
+    "loguru>=0.7.3",
+    "playwright>=1.62.0",
+    "pyarrow>=25.0.0",
+    "pydantic>=2.13.4",
+    "python-dateutil>=2.9.0.post0",
+    "pyyaml>=6.0.3",
+    "uvicorn[standard]>=0.52.1",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.1,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "mypy>=2.3.0",
+    "pytest>=9.1.1",
+    "pytest-timeout>=2.4.0",
+    "ruff>=0.16.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: требует поднятого демо-банка и браузера",
+    "e2e: полный прогон",
+    "scenario(name): сценарий отказа демо-банка для фикстуры scenario_page",
+]
+timeout = 120
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
