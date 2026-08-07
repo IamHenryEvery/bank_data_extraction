@@ -74,8 +74,6 @@ def test_launch_mode_reuses_profile_between_runs(demo_server, tmp_path):
 
 
 def start_client_browser(user_data_dir, port: int) -> subprocess.Popen[bytes]:
-    # Браузер клиента поднимаем отдельным процессом: вложенный sync_playwright()
-    # внутри уже работающего невозможен, и чужой процесс честнее моделирует attach.
     with sync_playwright() as p:
         executable = p.chromium.executable_path
 
@@ -117,7 +115,6 @@ def test_attach_mode_connects_to_running_browser(demo_server, tmp_path):
         finally:
             session.close()
 
-        # Браузер клиента остался жив: гасить его мы не имеем права.
         assert client.poll() is None
         assert cdp_reachable(f"http://localhost:{port}")
     finally:
