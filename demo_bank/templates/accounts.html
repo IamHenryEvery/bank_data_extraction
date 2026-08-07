@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 data-testid="dashboard-title">Мои продукты</h1>
+<ul id="products" data-testid="product-list">
+  {% for product in products %}
+  <li class="product" data-testid="product-item" data-product-id="{{ product.product_id }}">
+    <a href="/accounts/{{ product.product_id }}" data-testid="product-link">{{ product.name }}</a>
+    <span data-testid="product-number">{{ product.masked_number }}</span>
+    <span data-testid="product-type">{{ product.type }}</span>
+    <span data-testid="product-currency">{{ product.currency }}</span>
+    <span data-testid="product-balance" data-balance-pending="1">—</span>
+  </li>
+  {% endfor %}
+</ul>
+<p id="balances-loading" data-testid="balances-loading">Загружаем остатки…</p>
+{% endblock %}

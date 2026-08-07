@@ -1,0 +1,31 @@
+body {
+	font-family: system-ui, sans-serif;
+	margin: 0 auto;
+	max-width: 900px;
+	padding: 1rem;
+}
+header .logo {
+	font-weight: 700;
+	letter-spacing: 0.08em;
+}
+.product {
+	display: flex;
+	gap: 1rem;
+	padding: 0.5rem 0;
+	border-bottom: 1px solid #e5e5e5;
+}
+table {
+	width: 100%;
+	border-collapse: collapse;
+	margin-top: 1rem;
+}
+td,
+th {
+	padding: 0.35rem 0.5rem;
+	border-bottom: 1px solid #eee;
+	text-align: left;
+}
+.note {
+	color: #666;
+	font-size: 0.9rem;
+}

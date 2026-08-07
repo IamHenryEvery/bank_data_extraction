@@ -1,0 +1,58 @@
+[
+  {
+    "product_id": "card_001",
+    "type": "card",
+    "name": "Дебетовая карта Мир",
+    "number": "4276123456781234",
+    "currency": "RUB",
+    "balance": "125000.50",
+    "available_balance": "125000.50",
+    "status": "active"
+  },
+  {
+    "product_id": "acc_002",
+    "type": "account",
+    "name": "Текущий счёт",
+    "number": "40817810099910004312",
+    "currency": "RUB",
+    "balance": "340120.00",
+    "available_balance": "340120.00",
+    "status": "active",
+    "requisites": {
+      "account": "40817810099910004312",
+      "bic": "044525225",
+      "corr_account": "30101810400000000225",
+      "bank_name": "ДЕМО БАНК"
+    }
+  },
+  {
+    "product_id": "sav_003",
+    "type": "savings",
+    "name": "Накопительный счёт",
+    "number": "40817840012340005678",
+    "currency": "USD",
+    "balance": "5400.25",
+    "available_balance": "5400.25",
+    "status": "active"
+  },
+  {
+    "product_id": "dep_004",
+    "type": "deposit",
+    "name": "Вклад «Демо»",
+    "number": "42305810500000009876",
+    "currency": "RUB",
+    "balance": "1000000.00",
+    "status": "active"
+  },
+  {
+    "product_id": "cred_005",
+    "type": "credit",
+    "name": "Кредитная карта",
+    "number": "5536913812345678",
+    "currency": "RUB",
+    "balance": "-48300.75",
+    "available_balance": "151699.25",
+    "credit_limit": "200000.00",
+    "status": "active"
+  }
+]

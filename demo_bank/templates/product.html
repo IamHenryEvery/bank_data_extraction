@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 data-testid="product-title">{{ product.name }}</h1>
+<div data-testid="product-number">{{ product.masked_number }}</div>
+<div data-testid="product-balance">{{ product.balance }}</div>
+<div data-testid="product-currency">{{ product.currency }}</div>
+{% if product.requisites %}
+<dl data-testid="requisites">
+  <dt>Счёт</dt><dd data-testid="req-account">{{ product.requisites.account }}</dd>
+  <dt>БИК</dt><dd data-testid="req-bic">{{ product.requisites.bic }}</dd>
+  <dt>Корр. счёт</dt><dd data-testid="req-corr">{{ product.requisites.corr_account }}</dd>
+  <dt>Банк</dt><dd data-testid="req-bank">{{ product.requisites.bank_name }}</dd>
+</dl>
+{% endif %}
+
+<form method="get" data-testid="period-filter">
+  <input type="date" name="date_from" value="{{ date_from }}" data-testid="date-from">
+  <input type="date" name="date_to" value="{{ date_to }}" data-testid="date-to">
+  <button type="submit" data-testid="apply-filter">Применить</button>
+</form>
+
+<a href="/export/transactions.csv?product_id={{ product.product_id }}&date_from={{ date_from }}&date_to={{ date_to }}"
+   data-testid="export-csv">Скачать CSV</a>
+
+<table data-testid="tx-table"
+       data-product-id="{{ product.product_id }}"
+       data-date-from="{{ date_from }}" data-date-to="{{ date_to }}">
+  <thead><tr><th>Дата</th><th>Обработана</th><th>Сумма</th><th>Описание</th><th>Статус</th></tr></thead>
+  <tbody id="tx-body">
+    {% for tx in rows %}
+    <tr data-testid="tx-row" data-tx-id="{{ tx.id }}">
+      <td data-testid="tx-operation-date">{{ tx.operation_date }}</td>
+      <td data-testid="tx-posting-date">{{ tx.posting_date or "" }}</td>
+      <td data-testid="tx-amount">{{ tx.amount }}</td>
+      <td data-testid="tx-currency">{{ tx.currency }}</td>
+      <td data-testid="tx-description">{{ tx.description }}</td>
+      <td data-testid="tx-counterparty">{{ tx.counterparty or "" }}</td>
+      <td data-testid="tx-category">{{ tx.category or "" }}</td>
+      <td data-testid="tx-status">{{ tx.status }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if rows|length == 0 %}<p data-testid="empty-history">Операций за период нет</p>{% endif %}
+{% if has_more %}<button data-testid="load-more" data-cursor="{{ rows|length }}">Показать ещё</button>{% endif %}
+{% endblock %}

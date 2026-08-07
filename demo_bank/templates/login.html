@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Вход в личный кабинет</h1>
+<form method="post" action="/login" data-testid="login-form">
+  <label>Логин <input name="username" data-testid="login-input" autocomplete="off"></label>
+  <label>Пароль <input name="password" type="password" data-testid="password-input"></label>
+  <button type="submit" data-testid="login-submit">Войти</button>
+</form>
+<p class="note">Демо-стенд. Введите что угодно — данные не проверяются и не сохраняются.</p>
+{% endblock %}
