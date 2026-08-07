@@ -17,6 +17,7 @@ from demo_bank.scenarios import SCENARIO_COOKIE, SESSION_COOKIE, ScenarioMiddlew
 BASE = Path(__file__).parent
 DATA = BASE / "data"
 PAGE_SIZE = 20
+SESSION_MAX_AGE_S = 3600
 
 app = FastAPI(title="Демо-банк")
 app.add_middleware(ScenarioMiddleware)
@@ -90,7 +91,11 @@ def login_submit(username: str = Form(""), password: str = Form("")) -> Response
     token = secrets.token_urlsafe(16)
     SESSIONS.add(token)
     response = RedirectResponse("/accounts", status_code=302)
-    response.set_cookie(SESSION_COOKIE, token, httponly=True, samesite="lax")
+    # Кука со сроком жизни, а не сессионная: иначе она не переживает перезапуск
+    # браузера и постоянный профиль в режиме launch нечем проверить.
+    response.set_cookie(
+        SESSION_COOKIE, token, max_age=SESSION_MAX_AGE_S, httponly=True, samesite="lax"
+    )
     return response
 
 
