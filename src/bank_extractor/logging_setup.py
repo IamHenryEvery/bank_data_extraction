@@ -41,9 +41,7 @@ def json_sink(write: Callable[[str], Any]) -> "Callable[[Message], None]":
         if exception is not None:
             payload["error"] = redact_text(
                 "".join(
-                    traceback.format_exception(
-                        exception.type, exception.value, exception.traceback
-                    )
+                    traceback.format_exception(exception.type, exception.value, exception.traceback)
                 ).strip()
             )
 

@@ -77,9 +77,7 @@ def test_api_transactions_respects_period(logged_in):
         params={"date_from": "2026-06-01", "date_to": "2026-06-17"},
     ).json()
     assert payload["items"]
-    assert all(
-        "2026-06-01" <= item["operation_date"] <= "2026-06-17" for item in payload["items"]
-    )
+    assert all("2026-06-01" <= item["operation_date"] <= "2026-06-17" for item in payload["items"])
 
 
 def test_export_csv_is_cp1251_with_semicolons(logged_in):
