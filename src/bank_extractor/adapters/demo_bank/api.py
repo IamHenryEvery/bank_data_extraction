@@ -8,13 +8,9 @@ from bank_extractor.adapters.demo_bank import selectors as sel
 from bank_extractor.errors import ChannelFailed
 from bank_extractor.models import Period
 
-# Страховка от бесконечной пагинации при поломке курсора.
 MAX_PAGES = 200
 
 
-# Запросы идут через page.request, то есть через тот же браузерный контекст:
-# используются уже выданные клиенту cookies, отдельная авторизация не нужна
-# и никакие секреты не копируются.
 def _get_json(
     page: Page, url: str, params: dict[str, str | float | bool] | None = None
 ) -> dict[str, Any]:

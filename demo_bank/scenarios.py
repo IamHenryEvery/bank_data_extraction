@@ -92,7 +92,7 @@ class ScenarioMiddleware(BaseHTTPMiddleware):
         ):
             return PlainTextResponse("внутренняя ошибка", status_code=500)
 
-        if scenario in (Scenario.API_DOWN, Scenario.EXPORT_DOWN) and match is not None:
+        if scenario in (Scenario.API_DOWN, Scenario.EXPORT_DOWN) and path.startswith("/api/"):
             return JSONResponse({"detail": "сервис недоступен"}, status_code=503)
 
         if scenario is Scenario.EXPORT_DOWN and path == "/export/transactions.csv":
