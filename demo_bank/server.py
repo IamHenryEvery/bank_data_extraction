@@ -11,13 +11,15 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from demo_bank import scenarios
+from demo_bank.scenarios import SCENARIO_COOKIE, SESSION_COOKIE, ScenarioMiddleware
+
 BASE = Path(__file__).parent
 DATA = BASE / "data"
 PAGE_SIZE = 20
-SESSION_COOKIE = "demo_session"
-SCENARIO_COOKIE = "demo_scenario"
 
 app = FastAPI(title="Демо-банк")
+app.add_middleware(ScenarioMiddleware)
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 templates = Jinja2Templates(directory=BASE / "templates")
 
@@ -125,7 +127,9 @@ def product_page(
     product = find_product(product_id)
     date_from = date_from or "1970-01-01"
     date_to = date_to or date.today().isoformat()
-    rows = select_transactions(product_id, date_from, date_to)
+    rows = scenarios.apply_data_scenario(
+        scenarios.current(request), product_id, select_transactions(product_id, date_from, date_to)
+    )
 
     return templates.TemplateResponse(
         request,
@@ -155,7 +159,9 @@ def api_transactions(
     cursor: int = 0,
 ) -> JSONResponse:
     require_login(request)
-    rows = select_transactions(product_id, date_from, date_to)
+    rows = scenarios.apply_data_scenario(
+        scenarios.current(request), product_id, select_transactions(product_id, date_from, date_to)
+    )
     page = rows[cursor : cursor + PAGE_SIZE]
     next_cursor = cursor + PAGE_SIZE if cursor + PAGE_SIZE < len(rows) else None
     return JSONResponse({"items": page, "next_cursor": next_cursor})
@@ -169,7 +175,9 @@ def export_csv(
     date_to: str = "2100-01-01",
 ) -> Response:
     require_login(request)
-    rows = select_transactions(product_id, date_from, date_to)
+    rows = scenarios.apply_data_scenario(
+        scenarios.current(request), product_id, select_transactions(product_id, date_from, date_to)
+    )
 
     buffer = io.StringIO()
     writer = csv.writer(buffer, delimiter=";", lineterminator="\r\n")
