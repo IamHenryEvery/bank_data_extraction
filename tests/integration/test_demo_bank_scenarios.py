@@ -105,6 +105,27 @@ def test_session_expired_drops_session_after_three_requests():
     assert codes[3] == 401
 
 
+def test_duplicate_page_overlaps_second_page_by_one_row():
+    client = login("duplicate_page")
+    url = f"/api/products/{BROKEN_PRODUCT}/transactions"
+    first = client.get(url, params={**PERIOD, "cursor": "0"}).json()
+    second = client.get(url, params={**PERIOD, "cursor": first["next_cursor"]}).json()
+
+    first_ids = [item["id"] for item in first["items"]]
+    second_ids = [item["id"] for item in second["items"]]
+    assert second_ids[0] == first_ids[-1]
+    assert len(set(first_ids) & set(second_ids)) == 1
+
+
+def test_stuck_cursor_serves_the_same_page_again():
+    client = login("stuck_cursor")
+    url = f"/api/products/{BROKEN_PRODUCT}/transactions"
+    first = client.get(url, params={**PERIOD, "cursor": "0"}).json()
+    second = client.get(url, params={**PERIOD, "cursor": first["next_cursor"]}).json()
+
+    assert [item["id"] for item in second["items"]] == [item["id"] for item in first["items"]]
+
+
 @pytest.mark.parametrize("scenario", ["default", "empty_history", "broken_formats"])
 def test_products_endpoint_survives_data_scenarios(scenario):
     client = login(scenario)

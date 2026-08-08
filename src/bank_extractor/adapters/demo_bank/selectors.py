@@ -1,7 +1,3 @@
-# Все селекторы и тексты кабинета demo_bank — в одном месте: смена вёрстки
-# банка правится здесь и только здесь. Приоритет выбора: сначала data-testid,
-# потом роль и текст, и лишь в крайнем случае класс.
-
 DASHBOARD_TITLE = '[data-testid="dashboard-title"]'
 
 PRODUCT_LIST = '[data-testid="product-list"]'

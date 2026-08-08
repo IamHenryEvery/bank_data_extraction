@@ -7,7 +7,6 @@ from bank_extractor.adapters.demo_bank import selectors as sel
 from bank_extractor.errors import ChannelFailed
 from bank_extractor.models import Period
 
-MAX_PAGES = 200
 RENDER_TIMEOUT_MS = 10_000
 
 
@@ -86,8 +85,15 @@ def _read_requisites(page: Page, base_url: str, product_id: str) -> dict[str, st
     }
 
 
+def _row_keys(page: Page) -> list[str]:
+    keys: list[str] = page.eval_on_selector_all(
+        sel.TX_ROW, "rows => rows.map(row => row.dataset.txId || row.innerText)"
+    )
+    return keys
+
+
 def fetch_transactions(
-    page: Page, base_url: str, product_id: str, period: Period, *, max_pages: int = MAX_PAGES
+    page: Page, base_url: str, product_id: str, period: Period
 ) -> list[RawTransaction]:
     url = (
         f"{base_url}{sel.PATH_PRODUCT.format(product_id=product_id)}"
@@ -99,12 +105,17 @@ def fetch_transactions(
         logger.bind(channel="dom", product_id=product_id).info("история пуста")
         return []
 
-    _exhaust_pagination(page, max_pages)
+    _exhaust_pagination(page)
 
     rows: list[RawTransaction] = []
+    seen: set[str] = set()
     locator = page.locator(sel.TX_ROW)
+    keys = _row_keys(page)
 
     for index in range(locator.count()):
+        if keys[index] in seen:
+            continue
+        seen.add(keys[index])
         row = locator.nth(index)
         rows.append(
             RawTransaction(
@@ -125,13 +136,12 @@ def fetch_transactions(
     return rows
 
 
-def _exhaust_pagination(page: Page, max_pages: int) -> None:
-    for _ in range(max_pages):
-        button = page.locator(sel.LOAD_MORE)
-        if button.count() == 0:
-            return
+def _exhaust_pagination(page: Page) -> None:
+    seen = set(_row_keys(page))
+
+    while page.locator(sel.LOAD_MORE).count() > 0:
         before = page.locator(sel.TX_ROW).count()
-        button.first.click()
+        page.locator(sel.LOAD_MORE).first.click()
         try:
             page.wait_for_function(
                 f"document.querySelectorAll('{sel.TX_ROW}').length > {before}",
@@ -140,4 +150,7 @@ def _exhaust_pagination(page: Page, max_pages: int) -> None:
         except PlaywrightTimeoutError as exc:
             raise ChannelFailed("после нажатия «Показать ещё» новых строк не появилось") from exc
 
-    raise ChannelFailed(f"пагинация не завершилась за {max_pages} нажатий")
+        fresh = set(_row_keys(page)) - seen
+        if not fresh:
+            raise ChannelFailed("подгрузка вернула только уже виденные операции")
+        seen |= fresh

@@ -11,13 +11,12 @@ from starlette.middleware.base import BaseHTTPMiddleware
 SCENARIO_COOKIE = "demo_scenario"
 SESSION_COOKIE = "demo_session"
 
-# На каких продуктах отыгрываются точечные сценарии.
 EMPTY_PRODUCT = "acc_002"
 BROKEN_PRODUCT = "card_001"
 FAILING_PRODUCT = "sav_003"
 
-# Сколько запросов переживает сессия в сценарии session_expired.
 SESSION_TTL_REQUESTS = 3
+PAGE_OVERLAP = 1
 
 MONTHS_RU = {
     1: "января",
@@ -46,6 +45,8 @@ class Scenario(StrEnum):
     SLOW_LOAD = "slow_load"
     PARTIAL_FAILURE = "partial_failure"
     SESSION_EXPIRED = "session_expired"
+    DUPLICATE_PAGE = "duplicate_page"
+    STUCK_CURSOR = "stuck_cursor"
 
 
 def current(request: Request) -> Scenario:
@@ -105,6 +106,20 @@ class ScenarioMiddleware(BaseHTTPMiddleware):
                 return JSONResponse({"detail": "шлюз не ответил"}, status_code=504)
 
         return await call_next(request)
+
+
+def shift_cursor(scenario: Scenario, cursor: int) -> int:
+    if scenario is Scenario.DUPLICATE_PAGE:
+        return max(0, cursor - PAGE_OVERLAP)
+    if scenario is Scenario.STUCK_CURSOR:
+        return 0
+    return cursor
+
+
+def override_next_cursor(scenario: Scenario, cursor: int, next_cursor: int | None) -> int | None:
+    if scenario is Scenario.STUCK_CURSOR:
+        return cursor + 1
+    return next_cursor
 
 
 def apply_data_scenario(

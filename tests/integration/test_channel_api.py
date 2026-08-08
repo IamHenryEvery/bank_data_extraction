@@ -68,3 +68,16 @@ def test_empty_history_is_not_an_error(scenario_page, demo_server):
 def test_dead_api_raises_channel_failed(scenario_page, demo_server):
     with pytest.raises(ChannelFailed, match="503"):
         api.fetch_transactions(scenario_page, demo_server, "card_001", PERIOD)
+
+
+@pytest.mark.scenario("duplicate_page")
+def test_overlapping_pages_are_deduplicated(scenario_page, demo_server):
+    rows = api.fetch_transactions(scenario_page, demo_server, "card_001", PERIOD)
+    assert len(rows) == 34
+    assert len({row.external_id for row in rows}) == 34
+
+
+@pytest.mark.scenario("stuck_cursor")
+def test_stuck_cursor_raises_instead_of_looping(scenario_page, demo_server):
+    with pytest.raises(ChannelFailed, match="не движется"):
+        api.fetch_transactions(scenario_page, demo_server, "card_001", PERIOD)

@@ -112,9 +112,7 @@ def accounts_page(request: Request) -> Response:
     if not is_logged_in(request):
         return RedirectResponse("/login", status_code=302)
 
-    # Список продуктов рисует сервер, а остатки догружает JS из /api/products —
-    # как делают настоящие кабинеты. Поэтому DOM-канал всегда видит все продукты,
-    # но при недоступном API остаётся без балансов, и это честная частичная выдача.
+    # Список продуктов рисует сервер, а остатки догружает JS из /api/products
     listed = [public_product(product) for product in PRODUCTS]
     for item in listed:
         item.pop("balance", None)
@@ -167,8 +165,11 @@ def api_transactions(
     rows = scenarios.apply_data_scenario(
         scenarios.current(request), product_id, select_transactions(product_id, date_from, date_to)
     )
-    page = rows[cursor : cursor + PAGE_SIZE]
+    scenario = scenarios.current(request)
+    start = scenarios.shift_cursor(scenario, cursor)
+    page = rows[start : start + PAGE_SIZE]
     next_cursor = cursor + PAGE_SIZE if cursor + PAGE_SIZE < len(rows) else None
+    next_cursor = scenarios.override_next_cursor(scenario, cursor, next_cursor)
     return JSONResponse({"items": page, "next_cursor": next_cursor})
 
 

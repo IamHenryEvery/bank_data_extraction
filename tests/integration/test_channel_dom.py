@@ -1,6 +1,7 @@
 import pytest
 
 from bank_extractor.adapters.demo_bank import dom
+from bank_extractor.errors import ChannelFailed
 from bank_extractor.models import Period
 
 pytestmark = pytest.mark.integration
@@ -61,6 +62,19 @@ def test_pagination_collects_every_row_without_duplicates(authenticated_page, de
 def test_empty_history_marker_yields_no_rows(scenario_page, demo_server):
     rows = dom.fetch_transactions(scenario_page, demo_server, "acc_002", PERIOD)
     assert rows == []
+
+
+@pytest.mark.scenario("duplicate_page")
+def test_overlapping_pages_are_deduplicated(scenario_page, demo_server):
+    rows = dom.fetch_transactions(scenario_page, demo_server, "card_001", PERIOD)
+    assert len(rows) == 34
+    assert len({row.external_id for row in rows}) == 34
+
+
+@pytest.mark.scenario("stuck_cursor")
+def test_stuck_cursor_raises_instead_of_looping(scenario_page, demo_server):
+    with pytest.raises(ChannelFailed, match="уже виденные"):
+        dom.fetch_transactions(scenario_page, demo_server, "card_001", PERIOD)
 
 
 @pytest.mark.scenario("broken_formats")

@@ -8,7 +8,15 @@ from bank_extractor.adapters.demo_bank import selectors as sel
 from bank_extractor.errors import ChannelFailed
 from bank_extractor.models import Period
 
-MAX_PAGES = 200
+
+def _row_key(item: dict[str, Any]) -> str:
+    external_id = item.get("id")
+    if external_id:
+        return str(external_id)
+    return "|".join(
+        str(item.get(field, ""))
+        for field in ("operation_date", "amount", "description", "counterparty")
+    )
 
 
 def _get_json(
@@ -61,11 +69,10 @@ def fetch_transactions(
 ) -> list[RawTransaction]:
     url = f"{base_url}{sel.PATH_API_TRANSACTIONS.format(product_id=product_id)}"
     rows: list[RawTransaction] = []
+    seen: set[str] = set()
     cursor: int | None = 0
 
-    for _ in range(MAX_PAGES):
-        if cursor is None:
-            break
+    while cursor is not None:
         payload = _get_json(
             page,
             url,
@@ -75,7 +82,16 @@ def fetch_transactions(
                 "cursor": str(cursor),
             },
         )
-        for item in payload.get("items", []):
+        fresh = [item for item in payload.get("items", []) if _row_key(item) not in seen]
+        next_cursor = payload.get("next_cursor")
+
+        if not fresh and next_cursor is not None:
+            raise ChannelFailed(
+                f"страница не принесла новых операций, курсор {cursor} — пагинация не движется"
+            )
+
+        for item in fresh:
+            seen.add(_row_key(item))
             rows.append(
                 RawTransaction(
                     external_id=item.get("id"),
@@ -92,9 +108,7 @@ def fetch_transactions(
                     mcc=item.get("mcc"),
                 )
             )
-        cursor = payload.get("next_cursor")
-    else:
-        raise ChannelFailed(f"пагинация не завершилась за {MAX_PAGES} страниц")
+        cursor = next_cursor
 
     logger.bind(channel="api").debug("канал api отдал {} операций по {}", len(rows), product_id)
     return rows
