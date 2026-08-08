@@ -5,6 +5,7 @@ from playwright.sync_api import Page
 
 from bank_extractor.enums import Channel
 from bank_extractor.models import Period
+from bank_extractor.normalization.dialects import DateOrder, Dialect
 
 
 @dataclass(slots=True)
@@ -47,6 +48,8 @@ class ChannelResult:
 
 class BankAdapter(Protocol):
     name: str
+    date_order: DateOrder
+    dialect: Dialect
     # Порядок = приоритет: первый канал пробуется первым.
     product_channels: tuple[Channel, ...]
     transaction_channels: tuple[Channel, ...]

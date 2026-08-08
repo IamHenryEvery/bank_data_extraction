@@ -9,10 +9,13 @@ from bank_extractor.adapters.demo_bank import selectors as sel
 from bank_extractor.enums import Channel
 from bank_extractor.errors import ChannelUnavailable
 from bank_extractor.models import Period
+from bank_extractor.normalization.dialects import RU, DateOrder, Dialect
 
 
 class DemoBankAdapter:
     name = "demo_bank"
+    date_order: DateOrder = "dmy"
+    dialect: Dialect = RU
     product_channels: tuple[Channel, ...] = (Channel.API, Channel.DOM)
     transaction_channels: tuple[Channel, ...] = (Channel.API, Channel.EXPORT, Channel.DOM)
 
