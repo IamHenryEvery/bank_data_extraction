@@ -1,6 +1,7 @@
 import time
 from dataclasses import dataclass
 from datetime import datetime
+from functools import partial
 
 from loguru import logger
 from playwright.sync_api import Page
@@ -198,10 +199,11 @@ def _discover_products(
     for channel in adapter.product_channels:
         try:
             products = with_retries(
-                lambda ch=channel: adapter.fetch_products( 
+                partial(
+                    adapter.fetch_products,
                     page,
                     cfg.base_url,
-                    ch,
+                    channel,
                     with_balances=with_balances,
                     with_requisites=with_requisites,
                 ),
@@ -234,8 +236,8 @@ def _fetch_with_fallback(
         tried.append(channel)
         try:
             rows = with_retries(
-                lambda ch=channel: adapter.fetch_transactions( 
-                    page, cfg.base_url, raw_product, cfg.period, ch
+                partial(
+                    adapter.fetch_transactions, page, cfg.base_url, raw_product, cfg.period, channel
                 ),
                 attempts=cfg.retries.attempts,
                 backoff_s=cfg.retries.backoff_s,
