@@ -10,6 +10,12 @@ from bank_extractor.models import Period
 RENDER_TIMEOUT_MS = 10_000
 
 
+def _goto(page: Page, url: str) -> None:
+    response = page.goto(url)
+    if response is not None and response.status >= 400:
+        raise ChannelFailed(f"страница ответила {response.status}: {url}")
+
+
 def _text(scope: Locator, selector: str) -> str | None:
     node = scope.locator(selector)
     if node.count() == 0:
@@ -27,7 +33,7 @@ def fetch_products(
     balance_timeout_s: int = 10,
 ) -> tuple[list[RawProduct], list[str]]:
     warnings: list[str] = []
-    page.goto(f"{base_url}{sel.PATH_DASHBOARD}")
+    _goto(page, f"{base_url}{sel.PATH_DASHBOARD}")
 
     try:
         page.wait_for_selector(sel.PRODUCT_ITEM, timeout=RENDER_TIMEOUT_MS)
@@ -66,14 +72,17 @@ def fetch_products(
 
     if with_requisites:
         for product in products:
-            product.requisites = _read_requisites(page, base_url, product.product_id)
+            try:
+                product.requisites = _read_requisites(page, base_url, product.product_id)
+            except ChannelFailed as exc:
+                warnings.append(f"реквизиты {product.product_id} не прочитаны: {exc}")
 
     logger.bind(channel="dom").debug("канал dom отдал {} продуктов", len(products))
     return products, warnings
 
 
 def _read_requisites(page: Page, base_url: str, product_id: str) -> dict[str, str] | None:
-    page.goto(f"{base_url}{sel.PATH_PRODUCT.format(product_id=product_id)}")
+    _goto(page, f"{base_url}{sel.PATH_PRODUCT.format(product_id=product_id)}")
     body = page.locator("body")
     if body.locator(sel.REQUISITES).count() == 0:
         return None
@@ -99,7 +108,7 @@ def fetch_transactions(
         f"{base_url}{sel.PATH_PRODUCT.format(product_id=product_id)}"
         f"?date_from={period.from_.isoformat()}&date_to={period.to.isoformat()}"
     )
-    page.goto(url)
+    _goto(page, url)
 
     if page.locator(sel.EMPTY_HISTORY).count() > 0:
         logger.bind(channel="dom", product_id=product_id).info("история пуста")

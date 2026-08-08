@@ -36,4 +36,4 @@ def with_retries[T](
             sleep(delay)
             delay *= 2
 
-    raise ChannelFailed(f"{description}: исчерпаны попытки ({attempts})") from last
+    raise ChannelFailed(f"{description}: исчерпаны попытки ({attempts}): {last}") from last
