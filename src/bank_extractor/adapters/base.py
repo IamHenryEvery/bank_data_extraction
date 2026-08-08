@@ -50,7 +50,6 @@ class BankAdapter(Protocol):
     name: str
     date_order: DateOrder
     dialect: Dialect
-    # Порядок = приоритет: первый канал пробуется первым.
     product_channels: tuple[Channel, ...]
     transaction_channels: tuple[Channel, ...]
 

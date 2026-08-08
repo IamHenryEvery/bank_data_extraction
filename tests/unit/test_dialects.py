@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 
 from bank_extractor.adapters.registry import get_adapter
-from bank_extractor.enums import TransactionStatus, TransactionType
+from bank_extractor.enums import ProductStatus, ProductType, TransactionStatus, TransactionType
 from bank_extractor.normalization import NormalizationError
 from bank_extractor.normalization.categories import normalize_category
 from bank_extractor.normalization.currency import normalize_currency
@@ -22,6 +22,8 @@ FOREIGN = Dialect(
     hints=(("refund", TransactionType.REFUND),),
     categories={"grocery": "groceries"},
     currencies={"dollar": "USD"},
+    product_types={"checking": ProductType.ACCOUNT},
+    product_statuses={"open": ProductStatus.ACTIVE},
 )
 
 

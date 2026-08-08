@@ -1,7 +1,7 @@
 from dataclasses import dataclass, replace
 from typing import Literal
 
-from bank_extractor.enums import TransactionStatus, TransactionType
+from bank_extractor.enums import ProductStatus, ProductType, TransactionStatus, TransactionType
 
 DateOrder = Literal["dmy", "mdy", "ymd"]
 
@@ -18,6 +18,8 @@ class Dialect:
     hints: Hints
     categories: dict[str, str]
     currencies: dict[str, str]
+    product_types: dict[str, ProductType]
+    product_statuses: dict[str, ProductStatus]
 
     def extend(
         self,
@@ -30,6 +32,8 @@ class Dialect:
         hints: Hints = (),
         categories: dict[str, str] | None = None,
         currencies: dict[str, str] | None = None,
+        product_types: dict[str, ProductType] | None = None,
+        product_statuses: dict[str, ProductStatus] | None = None,
     ) -> "Dialect":
         return replace(
             self,
@@ -41,6 +45,8 @@ class Dialect:
             hints=self.hints + hints,
             categories={**self.categories, **(categories or {})},
             currencies={**self.currencies, **(currencies or {})},
+            product_types={**self.product_types, **(product_types or {})},
+            product_statuses={**self.product_statuses, **(product_statuses or {})},
         )
 
 
@@ -125,5 +131,25 @@ RU = Dialect(
         "£": "GBP",
         "¥": "CNY",
         "₸": "KZT",
+    },
+    product_types={
+        "карта": ProductType.CARD,
+        "счет": ProductType.ACCOUNT,
+        "счёт": ProductType.ACCOUNT,
+        "текущий счёт": ProductType.ACCOUNT,
+        "накопительный": ProductType.SAVINGS,
+        "накопительный счёт": ProductType.SAVINGS,
+        "вклад": ProductType.DEPOSIT,
+        "депозит": ProductType.DEPOSIT,
+        "кредит": ProductType.CREDIT,
+    },
+    product_statuses={
+        "активна": ProductStatus.ACTIVE,
+        "активен": ProductStatus.ACTIVE,
+        "действует": ProductStatus.ACTIVE,
+        "заблокирована": ProductStatus.BLOCKED,
+        "заблокирован": ProductStatus.BLOCKED,
+        "закрыт": ProductStatus.CLOSED,
+        "закрыта": ProductStatus.CLOSED,
     },
 )
