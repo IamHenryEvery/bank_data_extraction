@@ -16,13 +16,13 @@
 - [uv](https://docs.astral.sh/uv/) — через него ставится Python
 - Chromium — ставить через Playwright
 
-## Быстрый старт
+## Установка зависимостей
 
 ```bash
 uv sync
 uv run playwright install chromium
 ```
-
+## Запуск
 Терминал 1 — mock личного кабинета банка:
 
 ```bash
@@ -36,7 +36,7 @@ cp config.example.yaml config.yaml
 uv run python main.py config.yaml
 ```
 
-Откроется браузер на странице входа демо-банка. **Введите любые логин и пароль**. Извлечение начинается автоматически, файлы помещаются в папку out/
+Откроется браузер на странице входа демо-банка. Введите любые логин и пароль. Извлечение начинается автоматически, файлы помещаются в папку out/
 
 
 ### Результат 
@@ -75,11 +75,11 @@ uv run python main.py config.yaml
 
 Два режима, выбираются в `config.yaml`.
 
-| Режим | Что делает | Когда применим |
-|---|---|---|
-| `launch` | поднимает свой браузер с постоянным профилем и ждёт, пока клиент войдёт | основной |
-| `attach` | подключается по CDP к уже запущенному браузеру | браузер поднят специально под задачу |
-| `auto` | пробует `attach`, при неудаче уходит в `launch` | когда неизвестно заранее |
+| Режим | Что делает |
+|---|---|
+| `launch` | поднимает свой браузер с постоянным профилем и ждёт, пока клиент войдёт |
+| `attach` | подключается по CDP к уже запущенному браузеру |
+| `auto` | пробует `attach`, при неудаче уходит в `launch` |
 
 Для `attach` браузер должен быть запущен с отладочным портом:
 
@@ -95,27 +95,23 @@ google-chrome --remote-debugging-port=9222 --user-data-dir=/tmp/bank-profile
 Приоритет выбора: `data-testid` → роль и текст → класс. Индексы колонок не используются
 принципиально: в таблице операций демо-банка заголовков меньше, чем колонок, — так
 сделано намеренно, чтобы адаптер, который считает столбцы по порядку, сломался сразу.
-
 Ожидания везде по факту появления данных, а не по времени: `wait_for_selector`,
-`wait_for_function`. Ни одного `sleep` в коде извлечения нет.
+`wait_for_function`.
 
 ### Как обрабатываются разные форматы данных
 
 Три канала, в порядке приоритета. Если канал не справился — пробуется следующий,
 и так по каждому продукту отдельно.
 
-| Канал | Что делает | Почему такой приоритет |
+| Канал | Что делает |
 |---|---|---|
-| `api` | JSON-эндпоинты кабинета через `page.request` | самый устойчивый, формат меняется реже вёрстки |
-| `export` | нажимает «Скачать CSV» и разбирает файл | устойчивее DOM, но формат выгрузки тоже меняется |
-| `dom` | читает таблицу и дожимает «Показать ещё» | последний рубеж, ломается от смены вёрстки |
+| `api` | JSON-эндпоинты кабинета через `page.request` |
+| `export` | нажимает «Скачать CSV» и разбирает файл |
+| `dom` | читает таблицу и дожимает «Показать ещё» |
 
-Запросы канала `api` идут через тот же браузерный контекст, то есть с уже выданными
-клиенту cookies. Никакие секреты не копируются в наш код.
+Запросы канала `api` идут через тот же браузерный контекст, то есть с уже выданными клиенту cookies. 
 
-**Каналы ничего не парсят.** Дата остаётся `15.06.2026`, сумма `-4 919,58` с неразрывным
-пробелом, статус — русским словом. Разбор — работа нормализации, поэтому один
-нормализатор обслуживает все три канала и все будущие банки.
+**Каналы ничего не парсят.** Дата остаётся `15.06.2026`, сумма `-4 919,58` с неразрывным пробелом, статус — русским словом. Разбор — работа нормализации, поэтому один нормализатор обслуживает все три канала и все будущие банки.
 
 Нормализация умеет:
 
@@ -125,79 +121,182 @@ google-chrome --remote-debugging-port=9222 --user-data-dir=/tmp/bank-profile
 - статусы, типы и категории — по словарю банка.
 
 **Порядок дат объявляет адаптер** `06.10.2026` — это 6 октября для
-русского кабинета и 10 июня для американского; автоопределение здесь молча выдаёт
-правдоподобную ложь, поэтому `date_order` — обязательное свойство адаптера.
+русского кабинета и 10 июня для американского
+Незнакомые значения ведут себя по-разному:
+- **дата операции, сумма, валюта продукта** — без них запись бессмысленна, поэтому она уходит в `rejected` с причиной и сырым значением;
+- **статус, тип, категория, дата обработки** — деградируют до значения по умолчанию с предупреждением, запись сохраняется.
 
-Незнакомые значения ведут себя по-разному, и это осознанное разделение:
+### Масштабирование на несколько банков
 
-- **дата операции, сумма, валюта продукта** — без них запись бессмысленна, поэтому она
-  уходит в `rejected` с причиной и сырым значением;
-- **статус, тип, категория, дата обработки** — деградируют до значения по умолчанию с
-  предупреждением, запись сохраняется.
+Банк добавляется новым пакетом в `adapters/` и одной строкой регистрации.
+**Что нужно написать для нового банка**
 
-### Добавление банков
+```
+adapters/newbank/
+├── selectors.py   селекторы и пути кабинета
+├── api.py         канал JSON API      — если он у банка есть
+├── export.py      канал выгрузки      — если она есть
+├── dom.py         канал разбора HTML  — всегда нужен
+└── adapter.py     что и в каком порядке пробовать
+```
 
-Новый банк — новый пакет в `adapters/` и одна строка регистрации в
-`adapters/__init__.py`. Раннер, нормализация, валидация и экспорт не меняются.
+```python
+class NewBankAdapter:
+    name = "newbank"
+    date_order: DateOrder = "dmy"
+    dialect: Dialect = RU
+    product_channels = (Channel.API, Channel.DOM) # набор и приоритет каналов для продуктов
+    transaction_channels = (Channel.API, Channel.EXPORT, Channel.DOM) # набор и приоритет каналов для транзакций
+```
 
-Словари языка вынесены в `normalization/dialects.py`. Русский — единственный
-реализованный; добавить второй значит объявить `Dialect` и передать его адаптеру.
+```python
+# adapters/__init__.py
+register(NewBankAdapter())
+```
 
-### Устойчивость и частичные отказы
+После этого банк выбирается в конфиге по имени: `bank: newbank`.
+**Контракт проверяется типами.** `BankAdapter` — это `Protocol`, и `register()`
+принимает только то, что ему соответствует. Адаптер без объявленного `date_order` или с неверной сигнатурой канала не пройдёт mypy на строке регистрации.
 
-- Ретраи с экспоненциальным backoff, только для транзиентных ошибок: таймауты и
-  пропавшие элементы. 401 и 4xx не повторяются — повтор их не вылечит, а лишние
-  обращения к банку выглядят как подбор.
-- Отказ одного продукта не рушит прогон: продукт остаётся в выписке со статусом
-  `failed` и списком испробованных каналов, остальные извлекаются.
-- Пагинация останавливается по новизне: страница, не принёсшая ни одной ранее не
-  виденной операции, роняет канал. Это ловит застрявший курсор и попутно
-  дедуплицирует пересекающиеся страницы.
-- Неполнота никогда не выдаётся за полноту. Если DOM не может добрать вторую страницу,
-  канал падает, а не возвращает 20 операций из 34.
+**Словарь языка переиспользуется.** `RU` из `normalization/dialects.py` берётся
+как есть, а особенности конкретного банка накладываются поверх, не трогая общий:
 
+```python
+dialect = RU.extend(statuses={"выполнено": TransactionStatus.POSTED})
+```
 ---
 
 ## Схема выходных данных
 
-### Продукт
+### `statement.json`
 
-| Поле | Тип | Обяз. | Описание |
-|---|---|---|---|
-| `product_id` | string | да | идентификатор в кабинете |
-| `type` | enum | да | `card`, `account`, `savings`, `deposit`, `credit` |
-| `name` | string | да | название как в кабинете |
-| `masked_number` | string | нет | строго `**** 1234`, иной формат схема не примет |
-| `currency` | string | да | ISO-4217, три заглавных буквы |
-| `balance` | string | нет | сумма строкой с двумя знаками |
-| `available_balance` | string | нет | доступный остаток |
-| `credit_limit` | string | нет | лимит для кредитных продуктов |
-| `requisites` | object | нет | `masked_account`, `bic`, `corr_account`, `bank_name` |
-| `status` | enum | да | `active`, `blocked`, `closed`, `unknown` |
-| `extraction` | object | да | каким каналом взят, что пробовали, предупреждения |
-
-### Операция
-
-| Поле | Тип | Обяз. | Описание |
-|---|---|---|---|
-| `transaction_id` | string | да | идентификатор банка либо синтезированный |
-| `product_id` | string | да | ссылка на продукт |
-| `operation_date` | date | да | ISO, дата операции |
-| `posting_date` | date | нет | ISO, дата обработки |
-| `amount` | string | да | со знаком: расход отрицателен |
-| `currency` | string | да | ISO-4217 |
-| `type` | enum | да | `purchase`, `transfer`, `fee`, `interest`, `cashback`, `refund`, `atm`, `other` |
-| `description` | string | да | назначение как в кабинете |
-| `counterparty` | string | нет | контрагент или merchant |
-| `category` | string | нет | категория банка, чужая проходит как есть |
-| `status` | enum | да | `posted`, `pending`, `declined`, `hold` |
-| `mcc` | string | нет | код категории торговой точки |
-| `source_channel` | enum | да | `api`, `export`, `dom` — каким каналом добыта |
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Statement",
+  "type": "object",
+  "required": ["bank", "extracted_at", "period"],
+  "additionalProperties": false,
+  "properties": {
+    "bank": { "type": "string", "description": "имя адаптера банка" },
+    "extracted_at": { "type": "string", "format": "date-time" },
+    "period": { "$ref": "#/$defs/Period" },
+    "consent": { "oneOf": [{ "$ref": "#/$defs/ConsentSummary" }, { "type": "null" }] },
+    "products": { "type": "array", "items": { "$ref": "#/$defs/Product" }, "default": [] },
+    "transactions": { "type": "array", "items": { "$ref": "#/$defs/Transaction" }, "default": [] }
+  },
+  "$defs": {
+    "Period": {
+      "type": "object",
+      "required": ["from", "to"],
+      "properties": {
+        "from": { "type": "string", "format": "date" },
+        "to": { "type": "string", "format": "date" }
+      }
+    },
+    "ConsentSummary": {
+      "type": "object",
+      "required": ["consent_id", "scopes", "expires_at"],
+      "description": "выжимка согласия: идентификатор клиента и способ получения не выгружаются",
+      "properties": {
+        "consent_id": { "type": "string" },
+        "scopes": {
+          "type": "array",
+          "items": { "enum": ["products", "balances", "transactions", "requisites"] }
+        },
+        "expires_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Money": {
+      "type": "string",
+      "pattern": "^-?\\d+\\.\\d{2}$",
+      "description": "сумма строкой с двумя знаками; расход отрицателен"
+    },
+    "MaskedNumber": {
+      "type": "string",
+      "pattern": "^\\*{4} \\d{4}$",
+      "description": "иной формат схема не примет"
+    },
+    "Currency": { "type": "string", "pattern": "^[A-Z]{3}$", "description": "код ISO-4217" },
+    "Requisites": {
+      "type": "object",
+      "properties": {
+        "masked_account": { "oneOf": [{ "$ref": "#/$defs/MaskedNumber" }, { "type": "null" }] },
+        "bic": { "type": ["string", "null"] },
+        "corr_account": { "oneOf": [{ "$ref": "#/$defs/MaskedNumber" }, { "type": "null" }] },
+        "bank_name": { "type": ["string", "null"] }
+      }
+    },
+    "ProductExtractionMeta": {
+      "type": "object",
+      "description": "происхождение данных продукта",
+      "properties": {
+        "status": { "enum": ["ok", "partial", "failed"], "default": "ok" },
+        "channel": { "oneOf": [{ "$ref": "#/$defs/Channel" }, { "type": "null" }] },
+        "channels_tried": { "type": "array", "items": { "$ref": "#/$defs/Channel" } },
+        "warnings": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "Channel": { "enum": ["api", "export", "dom"] },
+    "Product": {
+      "type": "object",
+      "required": ["product_id", "type", "name", "currency"],
+      "properties": {
+        "product_id": { "type": "string", "description": "идентификатор в кабинете" },
+        "type": { "enum": ["card", "account", "savings", "deposit", "credit"] },
+        "name": { "type": "string", "description": "название как в кабинете" },
+        "masked_number": { "oneOf": [{ "$ref": "#/$defs/MaskedNumber" }, { "type": "null" }] },
+        "currency": { "$ref": "#/$defs/Currency" },
+        "balance": { "oneOf": [{ "$ref": "#/$defs/Money" }, { "type": "null" }] },
+        "available_balance": { "oneOf": [{ "$ref": "#/$defs/Money" }, { "type": "null" }] },
+        "credit_limit": { "oneOf": [{ "$ref": "#/$defs/Money" }, { "type": "null" }] },
+        "requisites": { "oneOf": [{ "$ref": "#/$defs/Requisites" }, { "type": "null" }] },
+        "status": { "enum": ["active", "blocked", "closed", "unknown"], "default": "unknown" },
+        "extraction": { "$ref": "#/$defs/ProductExtractionMeta" }
+      }
+    },
+    "Transaction": {
+      "type": "object",
+      "required": [
+        "transaction_id", "product_id", "operation_date",
+        "amount", "currency", "description", "source_channel"
+      ],
+      "properties": {
+        "transaction_id": {
+          "type": "string",
+          "description": "идентификатор банка либо синтезированный детерминированно"
+        },
+        "product_id": { "type": "string", "description": "ссылка на product_id продукта" },
+        "operation_date": { "type": "string", "format": "date" },
+        "posting_date": {
+          "type": ["string", "null"],
+          "format": "date",
+          "description": "пусто у операций в обработке и отклонённых"
+        },
+        "amount": { "$ref": "#/$defs/Money" },
+        "currency": { "$ref": "#/$defs/Currency" },
+        "type": {
+          "enum": ["purchase", "transfer", "fee", "interest", "cashback", "refund", "atm", "other"],
+          "default": "other"
+        },
+        "description": { "type": "string", "description": "назначение как в кабинете" },
+        "counterparty": { "type": ["string", "null"], "description": "контрагент или merchant" },
+        "category": {
+          "type": ["string", "null"],
+          "description": "категория банка; незнакомая проходит как есть"
+        },
+        "status": { "enum": ["posted", "pending", "declined", "hold"], "default": "posted" },
+        "mcc": { "type": ["string", "null"] },
+        "source_channel": { "$ref": "#/$defs/Channel" }
+      }
+    }
+  }
+}
+```
 
 Три правила, общих для всей схемы:
 
-1. **Суммы — строки, не числа.** `float` теряет точность, а числовой литерал в JSON
-   теряет незначащий ноль: `-1450.5` вместо `-1450.50`. В Parquet — `decimal128(18,2)`.
+1. **Суммы — строки, не числа.** `float` теряет точность, а числовой литерал в JSON теряет незначащий ноль: `-1450.5` вместо `-1450.50`. В Parquet — `decimal128(18,2)`.
 2. **Даты — ISO**, без времени: кабинет времени операции не отдаёт.
 3. **`transaction_id` при отсутствии в банке синтезируется** детерминированно из
    продукта, даты, суммы и описания — повторный прогон даст тот же идентификатор.
@@ -261,22 +360,173 @@ google-chrome --remote-debugging-port=9222 --user-data-dir=/tmp/bank-profile
 }
 ```
 
-### Отчёт о полноте
+### `extraction_report.json`
 
-Записывается в файл `extraction_report.json` 
+Пишется в любом исходе, включая фатальный: тогда `status` равен `failed`, причина лежит
+в `errors`, а `session` и `consent` могут быть `null` — сессия не открылась или согласие
+не успело загрузиться.
 
-| Поле | Что показывает |
-|---|---|
-| `status` | `ok`, `partial`, `failed` |
-| `session` | какой режим просили и какой получился |
-| `consent` | согласие без идентификатора клиента и способа получения |
-| `products.failed` | продукты, по которым извлечение не удалось, с перечнем каналов |
-| `transactions.by_product` | сколько операций собрано по каждому продукту |
-| `channels_used` | каким каналом добыт каждый продукт |
-| `validation` | сироты, несовпадение валют, даты вне периода |
-| `rejected` | поимённо всё, что не удалось собрать, с сырым значением |
-| `errors` | отказы каналов и потеря сессии |
-| `scope_restrictions` | что не извлекалось, потому что скоупа не было в согласии |
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ExtractionReport",
+  "type": "object",
+  "required": ["run_id", "bank", "status", "period", "started_at", "finished_at", "duration_s"],
+  "additionalProperties": false,
+  "properties": {
+    "run_id": { "type": "string", "description": "метка времени прогона" },
+    "bank": { "type": "string" },
+    "status": {
+      "enum": ["ok", "partial", "failed"],
+      "description": "partial — часть данных не извлечена; failed — не извлечено ничего"
+    },
+    "period": { "$ref": "#/$defs/Period" },
+    "session": { "oneOf": [{ "$ref": "#/$defs/SessionInfo" }, { "type": "null" }] },
+    "consent": { "oneOf": [{ "$ref": "#/$defs/ConsentSummary" }, { "type": "null" }] },
+    "started_at": { "type": "string", "format": "date-time" },
+    "finished_at": { "type": "string", "format": "date-time" },
+    "duration_s": { "type": "number" },
+    "products": { "$ref": "#/$defs/ProductsReport" },
+    "transactions": { "$ref": "#/$defs/TransactionsReport" },
+    "channels_used": {
+      "type": "object",
+      "description": "product_id → канал, которым добыты его операции",
+      "additionalProperties": { "$ref": "#/$defs/Channel" }
+    },
+    "normalization": { "$ref": "#/$defs/NormalizationReport" },
+    "validation": { "type": "array", "items": { "$ref": "#/$defs/ValidationWarning" } },
+    "rejected": { "type": "array", "items": { "$ref": "#/$defs/Rejected" } },
+    "errors": { "type": "array", "items": { "$ref": "#/$defs/ErrorEntry" } },
+    "scope_restrictions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "что не извлекалось, потому что скоупа не было в согласии"
+    }
+  },
+  "$defs": {
+    "Channel": { "enum": ["api", "export", "dom"] },
+    "Period": {
+      "type": "object",
+      "required": ["from", "to"],
+      "properties": {
+        "from": { "type": "string", "format": "date" },
+        "to": { "type": "string", "format": "date" }
+      }
+    },
+    "ConsentSummary": {
+      "type": "object",
+      "required": ["consent_id", "scopes", "expires_at"],
+      "properties": {
+        "consent_id": { "type": "string" },
+        "scopes": {
+          "type": "array",
+          "items": { "enum": ["products", "balances", "transactions", "requisites"] }
+        },
+        "expires_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "SessionInfo": {
+      "type": "object",
+      "required": ["mode_requested", "mode_resolved"],
+      "description": "какой режим просили и какой получился: auto может стать launch",
+      "properties": {
+        "mode_requested": { "enum": ["attach", "launch", "auto"] },
+        "mode_resolved": { "enum": ["attach", "launch"] }
+      }
+    },
+    "ProductFailure": {
+      "type": "object",
+      "required": ["product_id", "reason"],
+      "properties": {
+        "product_id": { "type": "string" },
+        "channels_tried": { "type": "array", "items": { "$ref": "#/$defs/Channel" } },
+        "reason": { "type": "string" }
+      }
+    },
+    "ProductsReport": {
+      "type": "object",
+      "properties": {
+        "total": { "type": "integer" },
+        "by_type": { "type": "object", "additionalProperties": { "type": "integer" } },
+        "failed": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ProductFailure" },
+          "description": "продукты, по которым исчерпаны все каналы"
+        }
+      }
+    },
+    "TransactionsReport": {
+      "type": "object",
+      "properties": {
+        "total": { "type": "integer" },
+        "by_product": { "type": "object", "additionalProperties": { "type": "integer" } },
+        "rejected": { "type": "integer", "description": "не собрано в модель" }
+      }
+    },
+    "WarningCount": {
+      "type": "object",
+      "required": ["code", "count"],
+      "description": "предупреждения схлопнуты по коду, с одним образцом",
+      "properties": {
+        "code": { "type": "string" },
+        "count": { "type": "integer" },
+        "sample": { "type": ["string", "null"] }
+      }
+    },
+    "NormalizationReport": {
+      "type": "object",
+      "properties": {
+        "fields_total": { "type": "integer" },
+        "fields_normalized": { "type": "integer" },
+        "warnings": { "type": "array", "items": { "$ref": "#/$defs/WarningCount" } }
+      }
+    },
+    "ValidationWarning": {
+      "type": "object",
+      "required": ["code", "message"],
+      "description": "кросс-проверки собранной выписки",
+      "properties": {
+        "code": {
+          "enum": [
+            "duplicate_transaction_id", "orphan_transaction", "currency_mismatch",
+            "date_outside_period", "posting_before_operation", "product_without_transactions"
+          ]
+        },
+        "message": { "type": "string" },
+        "product_id": { "type": ["string", "null"] },
+        "transaction_id": { "type": ["string", "null"] }
+      }
+    },
+    "Rejected": {
+      "type": "object",
+      "required": ["kind", "product_id", "reason"],
+      "description": "запись, которую не удалось собрать: без этих полей она бессмысленна",
+      "properties": {
+        "kind": { "enum": ["product", "transaction"] },
+        "product_id": { "type": "string" },
+        "reason": { "type": "string" },
+        "raw_value": { "type": ["string", "null"], "description": "что именно не разобралось" },
+        "description": { "type": ["string", "null"] }
+      }
+    },
+    "ErrorEntry": {
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": {
+          "enum": [
+            "channel_failed", "session_expired",
+            "consent_rejected", "unknown_bank", "extraction_failed"
+          ]
+        },
+        "message": { "type": "string" },
+        "product_id": { "type": ["string", "null"] },
+        "channel": { "oneOf": [{ "$ref": "#/$defs/Channel" }, { "type": "null" }] }
+      }
+    }
+  }
+}
+```
 
 ---
 
@@ -322,7 +572,7 @@ google-chrome --remote-debugging-port=9222 --user-data-dir=/tmp/bank-profile
 |---|---|
 | В отчёт и логи попадают только маскированные значения | `report.py`, `logging_setup.py` |
 | Библиотека не вводит учётные данные ни в одно поле | тест `tests/unit/test_no_credential_input.py` |
-| Схема не принимает немаскированный номер | тип `MaskedNumber` в `models.py` |
+| Схема не принимает полный номер | тип `MaskedNumber` в `models.py` |
 | Логи чистятся от номеров карт и кодов | `masking.redact_text` как фильтр в `logging_setup.py` |
 | Согласие со скоупами, сроком и границами периода | `consent.py`, проверка до открытия браузера |
 | Без скоупа данные не запрашиваются вовсе | `runner.py`, поле `scope_restrictions` в отчёте |

@@ -29,8 +29,7 @@ def _money_to_str(value: Decimal) -> str:
     return str(value.quantize(_CENTS))
 
 
-# Деньги сериализуются строкой: float теряет точность, а числовой литерал
-# в JSON теряет незначащий ноль (-1450.5 вместо -1450.50).
+# Деньги сериализуются строкой
 Money = Annotated[
     Decimal,
     PlainSerializer(_money_to_str, return_type=str, when_used="json"),
