@@ -65,8 +65,8 @@ class ExtractionReport(BaseModel):
     bank: str
     status: RunStatus
     period: Period
-    session: SessionInfo
-    consent: ConsentSummary
+    session: SessionInfo | None = None
+    consent: ConsentSummary | None = None
     started_at: datetime
     finished_at: datetime
     duration_s: float

@@ -10,14 +10,21 @@ from bank_extractor.models import Statement
 from bank_extractor.report import ExtractionReport
 
 
-def write_all(statement: Statement, report: ExtractionReport, cfg: OutputConfig) -> list[Path]:
+def prepare_dir(directory: Path) -> Path:
     try:
-        cfg.dir.mkdir(parents=True, exist_ok=True)
-        cfg.dir.chmod(stat.S_IRWXU)
+        directory.mkdir(parents=True, exist_ok=True)
+        directory.chmod(stat.S_IRWXU)
     except OSError as exc:
-        raise ExportError(f"не удалось подготовить каталог {cfg.dir}: {exc}") from exc
+        raise ExportError(f"не удалось подготовить каталог {directory}: {exc}") from exc
+    return directory
 
-    written = [json_export.write_report(report, cfg.dir / "extraction_report.json")]
+
+def write_report(report: ExtractionReport, directory: Path) -> Path:
+    return json_export.write_report(report, prepare_dir(directory) / "extraction_report.json")
+
+
+def write_all(statement: Statement, report: ExtractionReport, cfg: OutputConfig) -> list[Path]:
+    written = [write_report(report, cfg.dir)]
 
     if "json" in cfg.formats:
         written.append(json_export.write_statement(statement, cfg.dir / "statement.json"))
