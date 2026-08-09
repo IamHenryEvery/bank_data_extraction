@@ -12,3 +12,5 @@ out/
 *.log
 .profiles/
 .claude/
+config.yaml
+consent.json
